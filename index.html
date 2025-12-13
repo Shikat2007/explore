@@ -3,28 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Magic Love - Anti Skip & Smooth</title>
+    <title>Magic Love - 90% Solid Border</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', sans-serif; touch-action: none; }
         
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
         
-        /* ক্যামেরা প্রিভিউ */
         #video-container {
             position: absolute; bottom: 20px; left: 20px;
             width: 100px; height: 75px;
             border: 2px solid #00ffcc; border-radius: 12px;
             background: #000; overflow: hidden; z-index: 10; opacity: 0.8;
-            box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
         }
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); filter: brightness(1.2); }
 
-        /* লাল বিন্দু ট্র্যাকার */
         #hand-tracker {
             position: absolute; width: 25px; height: 25px;
-            background-color: rgba(255, 0, 0, 0.8); 
-            border: 2px solid white; border-radius: 50%;
-            box-shadow: 0 0 15px red;
+            background-color: #00ff00; 
+            border: 3px solid white; border-radius: 50%;
+            box-shadow: 0 0 15px #00ff00;
             z-index: 50; pointer-events: none; display: none;
             transform: translate(-50%, -50%);
             transition: background-color 0.2s;
@@ -38,6 +35,7 @@
         
         h1 { margin: 0; font-size: 1.5rem; color: #fff; text-shadow: 0 0 15px #ff00de; text-align: center; font-weight: bold; letter-spacing: 2px; }
         p { color: #fff; background: rgba(0,0,0,0.6); padding: 8px 20px; border-radius: 30px; margin-top: 10px; font-size: 0.8rem; border: 1px solid rgba(255, 0, 222, 0.4); }
+        .status-text { font-size: 1rem; color: #00ff00; margin-top: 5px; font-weight: bold; text-shadow: 0 0 5px black; }
 
         .btn-group { pointer-events: auto; margin-top: 15px; display: flex; gap: 15px; }
         .btn {
@@ -64,11 +62,6 @@
             font-weight: bold; cursor: pointer; transition: 0.3s;
             box-shadow: 0 0 20px rgba(255, 0, 222, 0.6);
         }
-        /* লকের সময় লোডিং বার */
-        #lock-indicator {
-            position: absolute; bottom: 100px; width: 0%; height: 4px; background: #00ffcc;
-            transition: width 2s linear; display: none;
-        }
     </style>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -84,15 +77,15 @@
         <h1 style="margin-bottom: 30px;">Magic Love</h1>
         <div id="loader"></div>
         <button id="start-btn" onclick="initApp()">START MAGIC</button>
-        <div id="status-msg" style="color: #888; margin-top: 15px;">Low Light & Anti-Lag Mode</div>
+        <div id="status-msg" style="color: #888; margin-top: 15px;">90% Solid Border Ready</div>
     </div>
 
     <div id="hand-tracker"></div>
-    <div id="lock-indicator"></div>
 
     <div id="ui-layer">
         <h1>Sifat's Magic</h1>
-        <p>🔴 Wave & Wait (2s)</p>
+        <p>Wait for <span style="color:#00ff00; font-weight:bold;">GREEN</span> then Swipe</p>
+        <div id="tracker-status" class="status-text">Detecting Hand...</div>
         <div class="btn-group">
             <button class="btn" onclick="switchCamera()">Flip</button>
             <button class="btn" onclick="toggleFullScreen()">Full</button>
@@ -108,47 +101,42 @@
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     const CONFIG = {
-        // ল্যাপটপে ল্যাগ কমানোর জন্য ২৫০০০ (আগে ৩০০০০ ছিল)
         particleCount: isMobile ? 9000 : 25000, 
-        
-        // ফোনের সাইজ বড় (2.2), ল্যাপটপে স্ট্যান্ডার্ড (0.7)
         particleSize: isMobile ? 2.2 : 0.7,
-        
-        // ২ সেকেন্ডের লক টাইম (২০০০ মিলি সেকেন্ড)
         swipeCooldown: 2000, 
-        
         textScale: isMobile ? 0.40 : 0.9,
         swipeThreshold: 0.02 
     };
 
+    // Full Sequence
     const SEQUENCE = [
         'WELCOME_MADAM', 
-        'I', 'HEART', 'L', 'O', 'V', 'E', 
-        'Y', 'O', 'U', 'A', 'L', 'I', 'N', 'E', 'Y', 
-        'FINAL_COMBINED',
+        'I', 
+        'HEART', 
+        'L', 'O', 'V', 'E', 
+        'Y', 'O', 'U', 
+        'A', 'L', 'I', 'N', 'E', 'Y', 
+        'FINAL_COMBINED', 
         'THANK_YOU',
         'VALOBASHO', 
         'MARRY_ME' 
     ];
 
     let currentStep = 0;
-    
-    // নতুন ভেরিয়েবল: লকিং সিস্টেমের জন্য
-    let isProcessingSwipe = false; 
-
+    let lastSwipeTime = 0;
     let font = null;
     let handX = 0, handY = 0;
     let lastHandX = 0;
     let useFrontCamera = true;
     let currentStream = null;
+    
     const tracker = document.getElementById('hand-tracker');
-    const lockBar = document.getElementById('lock-indicator');
+    const trackerStatus = document.getElementById('tracker-status');
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 3000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     
-    // পিক্সেল রেশিও ২ এ ফিক্স করা হলো যাতে ৪কে ল্যাপটপেও ল্যাগ না করে
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById('canvas-container').appendChild(renderer.domElement);
@@ -156,9 +144,9 @@
     function adjustCameraPosition() {
         const aspect = window.innerWidth / window.innerHeight;
         if (aspect < 1) {
-            camera.position.z = 220; // Mobile
+            camera.position.z = 240; // Mobile distance
         } else {
-            camera.position.z = 85; // Laptop
+            camera.position.z = 85; // Laptop distance
         }
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
@@ -204,40 +192,62 @@
     scene.add(new THREE.Points(geometry, material));
 
     // ==========================================
-    // 90% BORDER RULE (BOTH LAPTOP & PHONE)
+    // 90% BORDER / 10% FILL - SOLID GUARANTEE
     // ==========================================
     function getHybridPoints(geo, count, xOff, yOff, scale) {
         const tempPos = [];
-        const edges = new THREE.EdgesGeometry(geo, 15); 
+        const edges = new THREE.EdgesGeometry(geo, 10); 
         const edgePosAttr = edges.attributes.position;
         
         if (!edgePosAttr || edgePosAttr.count === 0) {
             return samplePointsFromMesh(geo, count, xOff, yOff, scale);
         }
 
-        // তোমার অনুরোধ অনুযায়ী ল্যাপটপ এবং ফোন—উভয় ক্ষেত্রেই ৯০% বর্ডার
+        // 90% Border, 10% Fill (Universal Rule)
         const borderRatio = 0.90; 
         
         const borderCount = Math.floor(count * borderRatio);
         const fillCount = count - borderCount;
 
+        // 1. Calculate Total Length for Equal Spacing
         const edgeSegments = [];
+        let totalLength = 0;
+
         for(let i=0; i < edgePosAttr.count; i+=2) { 
             const start = new THREE.Vector3(edgePosAttr.getX(i), edgePosAttr.getY(i), edgePosAttr.getZ(i));
             const end = new THREE.Vector3(edgePosAttr.getX(i+1), edgePosAttr.getY(i+1), edgePosAttr.getZ(i+1));
-            edgeSegments.push({ start, end });
+            const len = start.distanceTo(end);
+            edgeSegments.push({ start, end, len });
+            totalLength += len;
         }
 
-        for (let i = 0; i < borderCount; i++) {
-            const line = edgeSegments[Math.floor(Math.random() * edgeSegments.length)];
-            const t = Math.random(); 
-            const px = line.start.x + (line.end.x - line.start.x) * t;
-            const py = line.start.y + (line.end.y - line.start.y) * t;
-            const pz = line.start.z + (line.end.z - line.start.z) * t;
-            tempPos.push({ x: px * scale + xOff, y: py * scale + yOff, z: pz * scale });
+        // 2. Determine exact spacing (No Gaps)
+        const spacing = totalLength / borderCount;
+        
+        // 3. Walk along the edges placing points uniformly
+        for (let i = 0; i < edgeSegments.length; i++) {
+            const seg = edgeSegments[i];
+            const pointsInSeg = Math.max(1, Math.floor(seg.len / spacing)); 
+            
+            for(let j = 0; j < pointsInSeg; j++) {
+                const t = j / pointsInSeg; 
+                const px = seg.start.x + (seg.end.x - seg.start.x) * t;
+                const py = seg.start.y + (seg.end.y - seg.start.y) * t;
+                const pz = seg.start.z + (seg.end.z - seg.start.z) * t;
+                
+                tempPos.push({ x: px * scale + xOff, y: py * scale + yOff, z: pz * scale });
+            }
         }
 
+        // Fill remaining border quota if rounding caused shortage
+        while(tempPos.length < borderCount) {
+             const seg = edgeSegments[Math.floor(Math.random() * edgeSegments.length)];
+             tempPos.push({ x: seg.end.x * scale + xOff, y: seg.end.y * scale + yOff, z: seg.end.z * scale });
+        }
+
+        // 4. Fill remaining 10% inside
         const fillPoints = samplePointsFromMesh(geo, fillCount, xOff, yOff, scale);
+        
         return [...tempPos, ...fillPoints];
     }
 
@@ -262,7 +272,6 @@
     function calculateTargets(type) {
         if(!font) return;
         let points = [];
-        
         const textParams = { font: font, size: 5, height: 1, curveSegments: 6, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.1 };
 
         if (type === 'WELCOME_MADAM') {
@@ -271,29 +280,12 @@
             points = [...getHybridPoints(g1, CONFIG.particleCount * 0.5, -28, 8, 1),
                       ...getHybridPoints(g2, CONFIG.particleCount * 0.5, -20, -8, 1)];
         }
-        else if (type === 'THANK_YOU') {
-            const g1 = new THREE.TextGeometry("THANK YOU", textParams);
-            const g2 = new THREE.TextGeometry("MADAM", textParams);
-            points = [...getHybridPoints(g1, CONFIG.particleCount * 0.5, -28, 6, 1),
-                      ...getHybridPoints(g2, CONFIG.particleCount * 0.5, -18, -8, 1)];
-        }
-        else if (type === 'MARRY_ME') {
-            const g1 = new THREE.TextGeometry("WILL YOU", textParams);
-            const g2 = new THREE.TextGeometry("MARRY ME?", textParams);
-            points = [...getHybridPoints(g1, CONFIG.particleCount * 0.5, -25, 6, 1),
-                      ...getHybridPoints(g2, CONFIG.particleCount * 0.5, -28, -8, 1)];
-        }
-        else if (type === 'VALOBASHO') {
-            const g1 = new THREE.TextGeometry("TUMI KI AMAKE", { ...textParams, size: 4.5 });
-            const g2 = new THREE.TextGeometry("VALOBASHO?", { ...textParams, size: 4.5 });
-            points = [...getHybridPoints(g1, CONFIG.particleCount * 0.5, -30, 8, 1),
-                      ...getHybridPoints(g2, CONFIG.particleCount * 0.5, -25, -8, 1)];
-        }
         else if (type === 'HEART') {
             const rScale = isMobile ? 0.8 : 1.2; 
             for (let i = 0; i < CONFIG.particleCount; i++) {
                 const t = Math.random() * Math.PI * 2;
                 let scale = 1; 
+                // Heart 90% border rule
                 if (i >= CONFIG.particleCount * 0.9) scale = 0.5 + Math.random() * 0.5;
                 const x = 16 * Math.pow(Math.sin(t), 3);
                 const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
@@ -320,6 +312,32 @@
                 ...getHybridPoints(g3, CONFIG.particleCount * 0.40, 0, -8, 1) 
             ];
         }
+        else if (type === 'THANK_YOU') {
+            const g1 = new THREE.TextGeometry("THANK YOU", textParams);
+            const g2 = new THREE.TextGeometry("MADAM", textParams);
+            points = [...getHybridPoints(g1, CONFIG.particleCount * 0.5, -28, 6, 1),
+                      ...getHybridPoints(g2, CONFIG.particleCount * 0.5, -18, -8, 1)];
+        }
+        else if (type === 'VALOBASHO') {
+            const g1 = new THREE.TextGeometry("TUMI KI AMAKE", { ...textParams, size: 4.5 });
+            const g2 = new THREE.TextGeometry("VALOBASHO?", { ...textParams, size: 4.5 });
+            points = [...getHybridPoints(g1, CONFIG.particleCount * 0.5, -30, 8, 1),
+                      ...getHybridPoints(g2, CONFIG.particleCount * 0.5, -25, -8, 1)];
+        }
+        else if (type === 'MARRY_ME') {
+            const g1 = new THREE.TextGeometry("WILL YOU", textParams);
+            const g2 = new THREE.TextGeometry("MARRY ME?", textParams);
+            points = [...getHybridPoints(g1, CONFIG.particleCount * 0.5, -25, 6, 1),
+                      ...getHybridPoints(g2, CONFIG.particleCount * 0.5, -28, -8, 1)];
+        }
+        else {
+            // SINGLE LETTERS
+            const singleSize = isMobile ? 12 : 15;
+            const geo = new THREE.TextGeometry(type, { ...textParams, size: singleSize });
+            geo.computeBoundingBox(); 
+            geo.translate(-0.5 * (geo.boundingBox.max.x - geo.boundingBox.min.x), 0, 0);
+            points = getHybridPoints(geo, CONFIG.particleCount, 0, 0, 1);
+        }
 
         if (points.length === 0) return;
         
@@ -337,7 +355,7 @@
     async function setupCamera() {
         if (currentStream) currentStream.getTracks().forEach(track => track.stop());
         try {
-            statusMsg.innerText = "Camera Starting...";
+            statusMsg.innerText = "Starting Camera...";
             const constraints = {
                 video: { 
                     facingMode: useFrontCamera ? "user" : "environment",
@@ -352,7 +370,7 @@
             });
         } catch (e) { 
             console.error(e);
-            alert("Camera Access Required!"); 
+            alert("Camera Access Denied!"); 
             startBtn.style.display = "block";
             loader.style.display = "none";
         }
@@ -366,7 +384,6 @@
     function toggleFullScreen() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
 
     const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-    // Night Vision Mode (0.2)
     hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.2, minTrackingConfidence: 0.2 });
     
     hands.onResults(results => {
@@ -380,48 +397,42 @@
             tracker.style.left = (handX * 100) + '%';
             tracker.style.top = (handY * 100) + '%';
 
-            // ===============================================
-            // ANTI-SKIP & LOCK LOGIC
-            // ===============================================
-            // যদি এখন লক করা না থাকে (isProcessingSwipe == false), তবেই চেক করবে
-            if (!isProcessingSwipe) {
-                const movement = Math.abs(handX - lastHandX);
-                
-                // সেনসিটিভিটি চেক (০.০২)
-                if (movement > CONFIG.swipeThreshold) {
-                    
-                    // ১. ফ্ল্যাগ অন করো (লক শুরু)
-                    isProcessingSwipe = true;
-                    
-                    // ২. সিন চেঞ্জ করো
+            const currentTime = Date.now();
+            
+            // LOCK LOGIC
+            if (currentTime - lastSwipeTime < CONFIG.swipeCooldown) {
+                // LOCKED (White)
+                tracker.style.backgroundColor = 'white'; 
+                tracker.style.boxShadow = '0 0 5px white';
+                trackerStatus.innerText = "Wait...";
+                trackerStatus.style.color = "white";
+                lastHandX = handX;
+            } else {
+                // READY (Green)
+                tracker.style.backgroundColor = '#00ff00'; 
+                tracker.style.boxShadow = '0 0 15px #00ff00';
+                trackerStatus.innerText = "SWIPE NOW!";
+                trackerStatus.style.color = "#00ff00";
+
+                if (Math.abs(handX - lastHandX) > CONFIG.swipeThreshold) {
                     currentStep = (currentStep + 1) % SEQUENCE.length; 
                     calculateTargets(SEQUENCE[currentStep]); 
-                    
-                    // ৩. ভিজ্যুয়াল ফিডব্যাক
-                    tracker.style.backgroundColor = 'white';
-                    setTimeout(() => tracker.style.backgroundColor = 'rgba(255, 0, 0, 0.8)', 200);
-
-                    // ৪. ২ সেকেন্ড পর লক খুলবে
-                    setTimeout(() => {
-                        isProcessingSwipe = false;
-                        lastHandX = handX; // লক খোলার পর পজিশন রিসেট
-                    }, CONFIG.swipeCooldown);
+                    lastSwipeTime = currentTime; 
                 }
-            }
-            // লকের সময় আমরা lastHandX আপডেট করব না, যাতে বড় মুভমেন্ট মিস না হয়
-            if(!isProcessingSwipe) {
-                 lastHandX = handX;
+                lastHandX = handX;
             }
             
         } else {
             tracker.style.display = 'none'; 
+            trackerStatus.innerText = "No Hand";
+            trackerStatus.style.color = "red";
         }
     });
 
     window.initApp = async function() {
         startBtn.style.display = 'none';
         loader.style.display = 'block';
-        statusMsg.innerText = "Applying 90% Borders...";
+        statusMsg.innerText = "Aligning Borders...";
 
         const fontLoader = new THREE.FontLoader();
         fontLoader.load('https://unpkg.com/three@0.128.0/examples/fonts/helvetiker_bold.typeface.json', async (res) => {
@@ -446,7 +457,7 @@
         const colorsAttr = geometry.attributes.color; 
         
         for(let i=0; i<CONFIG.particleCount; i++) { 
-            // ৯০% পার্টিকেল বর্ডারে, তাই প্রায় সবই উজ্জ্বল হবে
+            // 90% Particles (Border) get higher brightness
             const isBorder = i < (CONFIG.particleCount * 0.9); 
             const brightness = isBorder ? 1.5 : 0.6; 
             colorsAttr.setXYZ(i, color.r * brightness, color.g * brightness, color.b * brightness); 
