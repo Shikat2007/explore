@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Infinite Love - Universal Master</title>
+    <title>Magic Love - Anti Skip & Smooth</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', sans-serif; touch-action: none; }
         
@@ -17,17 +17,17 @@
             background: #000; overflow: hidden; z-index: 10; opacity: 0.8;
             box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
         }
-        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); filter: brightness(1.2); }
 
-        /* 🔴 লাল বিন্দু (Visual Hand Tracker) - এটা থাকলে বুঝবে ক্যামেরা কাজ করছে */
+        /* লাল বিন্দু ট্র্যাকার */
         #hand-tracker {
             position: absolute; width: 25px; height: 25px;
             background-color: rgba(255, 0, 0, 0.8); 
             border: 2px solid white; border-radius: 50%;
             box-shadow: 0 0 15px red;
             z-index: 50; pointer-events: none; display: none;
+            transform: translate(-50%, -50%);
             transition: background-color 0.2s;
-            transform: translate(-50%, -50%); /* সেন্টার করার জন্য */
         }
 
         #ui-layer {
@@ -64,6 +64,11 @@
             font-weight: bold; cursor: pointer; transition: 0.3s;
             box-shadow: 0 0 20px rgba(255, 0, 222, 0.6);
         }
+        /* লকের সময় লোডিং বার */
+        #lock-indicator {
+            position: absolute; bottom: 100px; width: 0%; height: 4px; background: #00ffcc;
+            transition: width 2s linear; display: none;
+        }
     </style>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -79,14 +84,15 @@
         <h1 style="margin-bottom: 30px;">Magic Love</h1>
         <div id="loader"></div>
         <button id="start-btn" onclick="initApp()">START MAGIC</button>
-        <div id="status-msg" style="color: #888; margin-top: 15px;">Allow Camera Access</div>
+        <div id="status-msg" style="color: #888; margin-top: 15px;">Low Light & Anti-Lag Mode</div>
     </div>
 
     <div id="hand-tracker"></div>
+    <div id="lock-indicator"></div>
 
     <div id="ui-layer">
         <h1>Sifat's Magic</h1>
-        <p>🔴 Follow Red Dot</p>
+        <p>🔴 Wave & Wait (2s)</p>
         <div class="btn-group">
             <button class="btn" onclick="switchCamera()">Flip</button>
             <button class="btn" onclick="toggleFullScreen()">Full</button>
@@ -102,18 +108,16 @@
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     const CONFIG = {
-        // ল্যাপটপে ৩০,০০০ (ঘনত্বের জন্য), ফোনে ৮,৫০০ (পারফরমেন্সের জন্য)
-        particleCount: isMobile ? 8500 : 30000, 
+        // ল্যাপটপে ল্যাগ কমানোর জন্য ২৫০০০ (আগে ৩০০০০ ছিল)
+        particleCount: isMobile ? 9000 : 25000, 
         
-        // ফোনের জন্য সাইজ অনেক বড় (2.2) যাতে ৯০০০ পার্টিকেল দিয়েই লাইন মোটা দেখা যায়
+        // ফোনের সাইজ বড় (2.2), ল্যাপটপে স্ট্যান্ডার্ড (0.7)
         particleSize: isMobile ? 2.2 : 0.7,
         
-        // ফাস্ট রেসপন্স (১ সেকেন্ড বিরতি)
-        swipeCooldown: 1000, 
+        // ২ সেকেন্ডের লক টাইম (২০০০ মিলি সেকেন্ড)
+        swipeCooldown: 2000, 
         
         textScale: isMobile ? 0.40 : 0.9,
-        
-        // হাইপার সেনসিটিভ: মাত্র ০.০২ নড়লেই কাজ করবে
         swipeThreshold: 0.02 
     };
 
@@ -128,35 +132,33 @@
     ];
 
     let currentStep = 0;
-    let lastSwipeTime = 0;
+    
+    // নতুন ভেরিয়েবল: লকিং সিস্টেমের জন্য
+    let isProcessingSwipe = false; 
+
     let font = null;
     let handX = 0, handY = 0;
     let lastHandX = 0;
     let useFrontCamera = true;
     let currentStream = null;
     const tracker = document.getElementById('hand-tracker');
+    const lockBar = document.getElementById('lock-indicator');
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 3000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    // পিক্সেল রেশিও ২ এ ফিক্স করা হলো যাতে ৪কে ল্যাপটপেও ল্যাগ না করে
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-    // ==========================================
-    // SMART CAMERA POSITIONING
-    // ==========================================
     function adjustCameraPosition() {
         const aspect = window.innerWidth / window.innerHeight;
-        
         if (aspect < 1) {
-            // মোবাইল (Portrait): ক্যামেরাকে ২২০ ফুট দূরে নেওয়া হলো
-            // এতে লম্বা লেখাগুলো স্ক্রিনের মাঝখানে পারফেক্টলি ফিট হবে, কাটবে না
-            camera.position.z = 220; 
+            camera.position.z = 220; // Mobile
         } else {
-            // ল্যাপটপ
-            camera.position.z = 85; 
+            camera.position.z = 85; // Laptop
         }
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
@@ -168,9 +170,8 @@
         canvas.width = 32; canvas.height = 32; 
         const ctx = canvas.getContext('2d');
         const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-        // সুপার গ্লোয়িং ইফেক্ট
         grad.addColorStop(0, 'rgba(255, 255, 255, 1)'); 
-        grad.addColorStop(0.4, 'rgba(255, 255, 255, 0.8)'); 
+        grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.8)'); 
         grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, 32, 32);
@@ -203,21 +204,20 @@
     scene.add(new THREE.Points(geometry, material));
 
     // ==========================================
-    // HYBRID BORDER LOGIC (মোবাইলে ৯০% বর্ডার)
+    // 90% BORDER RULE (BOTH LAPTOP & PHONE)
     // ==========================================
     function getHybridPoints(geo, count, xOff, yOff, scale) {
         const tempPos = [];
-        // শার্প বর্ডারের জন্য Threshold 20
-        const edges = new THREE.EdgesGeometry(geo, 20); 
+        const edges = new THREE.EdgesGeometry(geo, 15); 
         const edgePosAttr = edges.attributes.position;
         
         if (!edgePosAttr || edgePosAttr.count === 0) {
             return samplePointsFromMesh(geo, count, xOff, yOff, scale);
         }
 
-        // মোবাইলে ৯০% পার্টিকেল বর্ডারে যাবে, ল্যাপটপে ৬০%
-        // এতে ফোনে লেখা একদম নিওন সাইনের মতো ক্লিয়ার হবে
-        const borderRatio = isMobile ? 0.90 : 0.60;
+        // তোমার অনুরোধ অনুযায়ী ল্যাপটপ এবং ফোন—উভয় ক্ষেত্রেই ৯০% বর্ডার
+        const borderRatio = 0.90; 
+        
         const borderCount = Math.floor(count * borderRatio);
         const fillCount = count - borderCount;
 
@@ -228,7 +228,6 @@
             edgeSegments.push({ start, end });
         }
 
-        // বর্ডারে পার্টিকেল বসানো
         for (let i = 0; i < borderCount; i++) {
             const line = edgeSegments[Math.floor(Math.random() * edgeSegments.length)];
             const t = Math.random(); 
@@ -238,7 +237,6 @@
             tempPos.push({ x: px * scale + xOff, y: py * scale + yOff, z: pz * scale });
         }
 
-        // বাকিটা ভেতরে ফিল করা
         const fillPoints = samplePointsFromMesh(geo, fillCount, xOff, yOff, scale);
         return [...tempPos, ...fillPoints];
     }
@@ -265,14 +263,11 @@
         if(!font) return;
         let points = [];
         
-        // Bevel Settings: লেখা মোটা এবং সুন্দর করার জন্য
         const textParams = { font: font, size: 5, height: 1, curveSegments: 6, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.1 };
-        // বড় টেক্সট
-        const bigParams = { ...textParams, size: 5.5 };
 
         if (type === 'WELCOME_MADAM') {
-            const g1 = new THREE.TextGeometry("WELCOME", bigParams);
-            const g2 = new THREE.TextGeometry("MADAM", bigParams);
+            const g1 = new THREE.TextGeometry("WELCOME", textParams);
+            const g2 = new THREE.TextGeometry("MADAM", textParams);
             points = [...getHybridPoints(g1, CONFIG.particleCount * 0.5, -28, 8, 1),
                       ...getHybridPoints(g2, CONFIG.particleCount * 0.5, -20, -8, 1)];
         }
@@ -299,7 +294,7 @@
             for (let i = 0; i < CONFIG.particleCount; i++) {
                 const t = Math.random() * Math.PI * 2;
                 let scale = 1; 
-                if (i >= CONFIG.particleCount * (isMobile ? 0.9 : 0.7)) scale = 0.5 + Math.random() * 0.5;
+                if (i >= CONFIG.particleCount * 0.9) scale = 0.5 + Math.random() * 0.5;
                 const x = 16 * Math.pow(Math.sin(t), 3);
                 const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
                 points.push({ x: x * scale * rScale, y: y * scale * rScale, z: (Math.random() - 0.5) * 5 });
@@ -357,7 +352,7 @@
             });
         } catch (e) { 
             console.error(e);
-            alert("Camera Permission Needed!"); 
+            alert("Camera Access Required!"); 
             startBtn.style.display = "block";
             loader.style.display = "none";
         }
@@ -371,36 +366,53 @@
     function toggleFullScreen() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
 
     const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-    // ডিটেকশন কনফিডেন্স ০.৩ এ নামানো হলো যাতে কম আলোতেও হাত ধরে (ল্যাপটপ ফিক্স)
-    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.3, minTrackingConfidence: 0.3 });
+    // Night Vision Mode (0.2)
+    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.2, minTrackingConfidence: 0.2 });
     
     hands.onResults(results => {
         if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
             const lm = results.multiHandLandmarks[0];
             handX = lm[8].x; 
             handY = lm[8].y;
-            
             if (useFrontCamera) handX = 1 - handX;
 
-            // লাল বিন্দু (Tracker Update)
             tracker.style.display = 'block';
             tracker.style.left = (handX * 100) + '%';
             tracker.style.top = (handY * 100) + '%';
 
-            const currentTime = Date.now();
-            if (currentTime - lastSwipeTime > CONFIG.swipeCooldown) {
-                // সেনসিটিভিটি চেক: মাত্র ০.০২ ডিসটেন্স
-                if (Math.abs(handX - lastHandX) > CONFIG.swipeThreshold) {
+            // ===============================================
+            // ANTI-SKIP & LOCK LOGIC
+            // ===============================================
+            // যদি এখন লক করা না থাকে (isProcessingSwipe == false), তবেই চেক করবে
+            if (!isProcessingSwipe) {
+                const movement = Math.abs(handX - lastHandX);
+                
+                // সেনসিটিভিটি চেক (০.০২)
+                if (movement > CONFIG.swipeThreshold) {
+                    
+                    // ১. ফ্ল্যাগ অন করো (লক শুরু)
+                    isProcessingSwipe = true;
+                    
+                    // ২. সিন চেঞ্জ করো
                     currentStep = (currentStep + 1) % SEQUENCE.length; 
                     calculateTargets(SEQUENCE[currentStep]); 
-                    lastSwipeTime = currentTime;
                     
-                    // ভিজ্যুয়াল ফিডব্যাক: চেঞ্জ হলে ট্র্যাকার সাদা হবে
+                    // ৩. ভিজ্যুয়াল ফিডব্যাক
                     tracker.style.backgroundColor = 'white';
                     setTimeout(() => tracker.style.backgroundColor = 'rgba(255, 0, 0, 0.8)', 200);
+
+                    // ৪. ২ সেকেন্ড পর লক খুলবে
+                    setTimeout(() => {
+                        isProcessingSwipe = false;
+                        lastHandX = handX; // লক খোলার পর পজিশন রিসেট
+                    }, CONFIG.swipeCooldown);
                 }
             }
-            lastHandX = handX;
+            // লকের সময় আমরা lastHandX আপডেট করব না, যাতে বড় মুভমেন্ট মিস না হয়
+            if(!isProcessingSwipe) {
+                 lastHandX = handX;
+            }
+            
         } else {
             tracker.style.display = 'none'; 
         }
@@ -409,7 +421,7 @@
     window.initApp = async function() {
         startBtn.style.display = 'none';
         loader.style.display = 'block';
-        statusMsg.innerText = "Particles Aligning...";
+        statusMsg.innerText = "Applying 90% Borders...";
 
         const fontLoader = new THREE.FontLoader();
         fontLoader.load('https://unpkg.com/three@0.128.0/examples/fonts/helvetiker_bold.typeface.json', async (res) => {
@@ -428,18 +440,14 @@
     function animate() {
         requestAnimationFrame(animate); 
         const time = clock.getElapsedTime();
-        
-        // ভাইব্রেন্ট কালার চেঞ্জ (ফাস্ট সাইকেল)
-        const h = (time * 0.3) % 1; 
-        const s = 1.0; 
-        const l = 0.5; 
-        
+        const h = (time * 0.25) % 1; 
+        const s = 1.0; const l = 0.5; 
         const color = new THREE.Color().setHSL(h, s, l);
         const colorsAttr = geometry.attributes.color; 
         
         for(let i=0; i<CONFIG.particleCount; i++) { 
-            // বর্ডারের পার্টিকেলগুলো ভেতরের চেয়ে বেশি উজ্জ্বল (Glow)
-            const isBorder = i < (CONFIG.particleCount * (isMobile ? 0.9 : 0.6)); 
+            // ৯০% পার্টিকেল বর্ডারে, তাই প্রায় সবই উজ্জ্বল হবে
+            const isBorder = i < (CONFIG.particleCount * 0.9); 
             const brightness = isBorder ? 1.5 : 0.6; 
             colorsAttr.setXYZ(i, color.r * brightness, color.g * brightness, color.b * brightness); 
         }
