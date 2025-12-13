@@ -3,48 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Infinite Love Magic</title>
+    <title>Infinite Love Magic - Universal Fix</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; touch-action: none; }
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', sans-serif; touch-action: none; }
         
+        /* ক্যানভাস */
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
         
+        /* ছোট ভিডিও প্রিভিউ */
         #video-container {
-            position: absolute; bottom: 15px; left: 15px;
-            width: 120px; height: 90px;
-            border: 2px solid #00ffcc; border-radius: 8px;
+            position: absolute; bottom: 20px; left: 20px;
+            width: 80px; height: 60px;
+            border: 2px solid #00ffcc; border-radius: 10px;
             background: #000; overflow: hidden; z-index: 10; opacity: 0.8;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
         }
+        /* playsinline is crucial for iOS */
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
 
+        /* UI লেয়ার */
         #ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 20; 
-            display: flex; flex-direction: column; align-items: center; padding-top: 30px;
+            display: flex; flex-direction: column; align-items: center; padding-top: 40px;
         }
         
-        h1 { margin: 0; font-size: 1.8rem; color: #00ffcc; text-shadow: 0 0 15px #00ffcc; letter-spacing: 2px; }
-        p { color: rgba(255,255,255,0.9); background: rgba(0,0,0,0.6); padding: 8px 20px; border-radius: 20px; margin-top: 10px; font-weight: bold;}
+        h1 { margin: 0; font-size: 1.8rem; color: #00ffcc; text-shadow: 0 0 10px #00ffcc; text-transform: uppercase; letter-spacing: 2px; text-align: center; }
+        p { color: #fff; background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 20px; margin-top: 10px; font-size: 0.8rem; border: 1px solid rgba(0,255,204,0.3); }
 
         .btn-group { pointer-events: auto; margin-top: 15px; display: flex; gap: 15px; }
         .btn {
-            background: rgba(0, 255, 204, 0.15); border: 1px solid #00ffcc; color: #00ffcc;
-            padding: 10px 25px; border-radius: 30px; cursor: pointer; font-weight: bold;
-            backdrop-filter: blur(5px);
+            background: rgba(0, 20, 20, 0.8); border: 1px solid #00ffcc; color: #00ffcc;
+            padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 0.8rem;
+            text-transform: uppercase; letter-spacing: 1px;
         }
         .btn:active { background: #00ffcc; color: #000; }
 
+        /* লোডিং এবং স্টার্ট স্ক্রিন */
         #start-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: #000; z-index: 100;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            pointer-events: auto;
+            pointer-events: auto; text-align: center;
         }
+        #loader {
+            width: 40px; height: 40px; border: 4px solid #333; border-top: 4px solid #00ffcc; border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 20px; display: none;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
         #start-btn {
-            margin-top: 20px; padding: 15px 50px; font-size: 1.5rem;
-            background: #00ffcc; border: none; border-radius: 50px; color: #000;
-            font-weight: bold; box-shadow: 0 0 30px #00ffcc; cursor: pointer;
+            padding: 15px 40px; font-size: 1.2rem;
+            background: transparent; border: 2px solid #00ffcc; border-radius: 50px; color: #00ffcc;
+            font-weight: bold; cursor: pointer; transition: 0.3s;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
         }
+        #start-btn:hover { background: #00ffcc; color: #000; }
+        #status-msg { color: #aaa; margin-top: 15px; font-size: 0.9rem; }
     </style>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -57,17 +72,18 @@
 <body>
 
     <div id="start-screen">
-        <h1 style="font-size: 2.5rem;">Magic Show</h1>
-        <p style="font-size: 1.2rem;">Camera Access Required</p>
-        <button id="start-btn" onclick="startApp()">START</button>
+        <h1 style="margin-bottom: 30px;">Magic Show</h1>
+        <div id="loader"></div>
+        <button id="start-btn" onclick="initApp()">OPEN CAMERA</button>
+        <div id="status-msg">Click to Start</div>
     </div>
 
     <div id="ui-layer">
         <h1>Sifat's Magic</h1>
-        <p>✨ Auto Color | 🖐 Swipe for Infinite Loop</p>
+        <p>👋 Wave Hand to Change</p>
         <div class="btn-group">
-            <button class="btn" onclick="switchCamera()">🔄 Flip Camera</button>
-            <button class="btn" onclick="toggleFullScreen()">⛶ Fullscreen</button>
+            <button class="btn" onclick="switchCamera()">Camera</button>
+            <button class="btn" onclick="toggleFullScreen()">Full</button>
         </div>
     </div>
 
@@ -80,51 +96,68 @@
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     const CONFIG = {
-        particleCount: isMobile ? 18000 : 36000, 
-        particleSize: isMobile ? 0.7 : 0.55,
-        swipeCooldown: 1500,
-        textScale: isMobile ? 0.55 : 0.9
+        // মোবাইলের জন্য পার্টিকেল কমিয়ে ৫০০০ করা হয়েছে যাতে ব্ল্যাক স্ক্রিন বা ক্র্যাশ না করে
+        particleCount: isMobile ? 5000 : 15000, 
+        particleSize: isMobile ? 0.9 : 0.6,
+        swipeCooldown: 1500, // ১.৫ সেকেন্ড বিরতি
+        textScale: isMobile ? 0.45 : 0.9,
+        swipeThreshold: 0.05 // হাই সেনসিটিভিটি
     };
 
-    // SEQUENCE (Correct Order & Looping)
     const SEQUENCE = [
         'WELCOME_MADAM', 
         'I', 'HEART', 'L', 'O', 'V', 'E', 
         'Y', 'O', 'U', 'A', 'L', 'I', 'N', 'E', 'Y', 
         'FINAL_COMBINED',
         'THANK_YOU',
-        'VALOBASHO',  // Tumi ki amake valobasho?
-        'MARRY_ME'    // Will you marry me?
+        'VALOBASHO', 
+        'MARRY_ME' 
     ];
 
     let currentStep = 0;
     let lastSwipeTime = 0;
     let font = null;
-    let handX = 0, handY = 0;
+    let handX = 0;
     let lastHandX = 0;
     let useFrontCamera = true;
     let currentStream = null;
 
+    // Three.js Setup
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 1500);
-    camera.position.z = 75; 
-
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 2000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    
+    // রেন্ডারার সেটআপ
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     document.getElementById('canvas-container').appendChild(renderer.domElement);
 
+    // ক্যামেরা পজিশন ঠিক করা (যাতে মোবাইলে লেখা বাইরে না যায়)
+    function adjustCameraPosition() {
+        const aspect = window.innerWidth / window.innerHeight;
+        if (aspect < 1) {
+            // মোবাইল (লম্বা স্ক্রিন): ক্যামেরাকে অনেক দূরে (z=150) সরাতে হবে
+            camera.position.z = 150; 
+        } else {
+            // ল্যাপটপ (চওড়া স্ক্রিন)
+            camera.position.z = 75; 
+        }
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+    
+    // পার্টিকেল তৈরি
     function createGlowTexture() {
         const canvas = document.createElement('canvas');
-        canvas.width = 64; canvas.height = 64;
+        canvas.width = 32; canvas.height = 32; 
         const ctx = canvas.getContext('2d');
-        const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+        const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
         grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
-        grad.addColorStop(0.2, 'rgba(255, 255, 255, 0.9)'); 
-        grad.addColorStop(0.5, 'rgba(0, 255, 204, 0.4)'); 
+        grad.addColorStop(0.4, 'rgba(0, 255, 204, 0.6)'); 
         grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, 64, 64);
+        ctx.fillRect(0, 0, 32, 32);
         return new THREE.CanvasTexture(canvas);
     }
 
@@ -135,9 +168,9 @@
     const baseColor = new THREE.Color(0xffffff);
 
     for (let i = 0; i < CONFIG.particleCount; i++) {
-        positions[i*3] = (Math.random()-0.5) * 300;
-        positions[i*3+1] = (Math.random()-0.5) * 300;
-        positions[i*3+2] = (Math.random()-0.5) * 300;
+        positions[i*3] = (Math.random()-0.5) * 200;
+        positions[i*3+1] = (Math.random()-0.5) * 200;
+        positions[i*3+2] = (Math.random()-0.5) * 200;
         colors[i*3] = baseColor.r; colors[i*3+1] = baseColor.g; colors[i*3+2] = baseColor.b;
     }
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -150,64 +183,58 @@
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         transparent: true,
-        opacity: 0.95
+        opacity: 0.9
     });
     scene.add(new THREE.Points(geometry, material));
 
+    // টেক্সট এবং শেপ লজিক
     function samplePointsFromMesh(geometry, count, xOff, yOff, scale) {
         const tempPos = [];
         const posAttr = geometry.attributes.position;
         const faces = posAttr.count / 3;
-        let totalArea = 0;
-        const faceAreas = [];
-        const va = new THREE.Vector3(), vb = new THREE.Vector3(), vc = new THREE.Vector3();
-        for (let i = 0; i < faces; i++) {
-            va.fromBufferAttribute(posAttr, i * 3 + 0); vb.fromBufferAttribute(posAttr, i * 3 + 1); vc.fromBufferAttribute(posAttr, i * 3 + 2);
-            const area = new THREE.Vector3().subVectors(vb, va).cross(new THREE.Vector3().subVectors(vc, va)).length() * 0.5;
-            totalArea += area; faceAreas.push(area);
-        }
         for (let i = 0; i < count; i++) {
-            let r = Math.random() * totalArea; let faceIndex = 0;
-            for (let j = 0; j < faces; j++) { if (r <= faceAreas[j]) { faceIndex = j; break; } r -= faceAreas[j]; }
-            va.fromBufferAttribute(posAttr, faceIndex * 3 + 0); vb.fromBufferAttribute(posAttr, faceIndex * 3 + 1); vc.fromBufferAttribute(posAttr, faceIndex * 3 + 2);
-            const r1 = Math.sqrt(Math.random()), r2 = Math.random(), a = 1 - r1, b = r1 * (1 - r2), c = r1 * r2;
-            const px = a * va.x + b * vb.x + c * vc.x; const py = a * va.y + b * vb.y + c * vc.y; const pz = a * va.z + b * vb.z + c * vc.z;
+            const faceIndex = Math.floor(Math.random() * faces);
+            const ia = faceIndex * 3; const ib = faceIndex * 3 + 1; const ic = faceIndex * 3 + 2;
+            const r1 = Math.random(); const r2 = Math.random();
+            const sqrtR1 = Math.sqrt(r1);
+            const a = 1 - sqrtR1; const b = sqrtR1 * (1 - r2); const c = sqrtR1 * r2;
+            const px = a * posAttr.getX(ia) + b * posAttr.getX(ib) + c * posAttr.getX(ic);
+            const py = a * posAttr.getY(ia) + b * posAttr.getY(ib) + c * posAttr.getY(ic);
+            const pz = a * posAttr.getZ(ia) + b * posAttr.getZ(ib) + c * posAttr.getZ(ic);
             tempPos.push({ x: px * scale + xOff, y: py * scale + yOff, z: pz * scale });
         }
         return tempPos;
     }
 
     function calculateTargets(type) {
+        if(!font) return;
         let points = [];
-        const rScale = isMobile ? 0.7 : 1.0;
+        const rScale = isMobile ? 0.6 : 1.0; 
         
+        // সব শেপ এবং টেক্সট আগের মতোই রাখা হয়েছে
         if (type === 'WELCOME_MADAM') {
             const g1 = new THREE.TextGeometry("WELCOME", { font: font, size: 6, height: 1 });
             const g2 = new THREE.TextGeometry("MADAM", { font: font, size: 6, height: 1 });
-            const p1 = samplePointsFromMesh(g1, CONFIG.particleCount * 0.55, -28, 6, 1);
-            const p2 = samplePointsFromMesh(g2, CONFIG.particleCount * 0.45, -20, -8, 1);
-            points = [...p1, ...p2];
+            points = [...samplePointsFromMesh(g1, CONFIG.particleCount * 0.55, -28, 6, 1),
+                      ...samplePointsFromMesh(g2, CONFIG.particleCount * 0.45, -20, -8, 1)];
         }
         else if (type === 'THANK_YOU') {
             const g1 = new THREE.TextGeometry("THANK YOU", { font: font, size: 5, height: 1 });
             const g2 = new THREE.TextGeometry("MADAM", { font: font, size: 5, height: 1 });
-            const p1 = samplePointsFromMesh(g1, CONFIG.particleCount * 0.5, -28, 6, 1);
-            const p2 = samplePointsFromMesh(g2, CONFIG.particleCount * 0.5, -18, -8, 1);
-            points = [...p1, ...p2];
+            points = [...samplePointsFromMesh(g1, CONFIG.particleCount * 0.5, -28, 6, 1),
+                      ...samplePointsFromMesh(g2, CONFIG.particleCount * 0.5, -18, -8, 1)];
         }
         else if (type === 'MARRY_ME') {
             const g1 = new THREE.TextGeometry("WILL YOU", { font: font, size: 5, height: 1 });
             const g2 = new THREE.TextGeometry("MARRY ME?", { font: font, size: 5, height: 1 });
-            const p1 = samplePointsFromMesh(g1, CONFIG.particleCount * 0.5, -25, 6, 1);
-            const p2 = samplePointsFromMesh(g2, CONFIG.particleCount * 0.5, -28, -8, 1);
-            points = [...p1, ...p2];
+            points = [...samplePointsFromMesh(g1, CONFIG.particleCount * 0.5, -25, 6, 1),
+                      ...samplePointsFromMesh(g2, CONFIG.particleCount * 0.5, -28, -8, 1)];
         }
         else if (type === 'VALOBASHO') {
             const g1 = new THREE.TextGeometry("TUMI KI AMAKE", { font: font, size: 4, height: 1 });
             const g2 = new THREE.TextGeometry("VALOBASHO?", { font: font, size: 4, height: 1 });
-            const p1 = samplePointsFromMesh(g1, CONFIG.particleCount * 0.5, -30, 6, 1);
-            const p2 = samplePointsFromMesh(g2, CONFIG.particleCount * 0.5, -25, -8, 1);
-            points = [...p1, ...p2];
+            points = [...samplePointsFromMesh(g1, CONFIG.particleCount * 0.5, -30, 6, 1),
+                      ...samplePointsFromMesh(g2, CONFIG.particleCount * 0.5, -25, -8, 1)];
         }
         else if (type === 'HEART') {
             for (let i = 0; i < CONFIG.particleCount; i++) {
@@ -215,88 +242,161 @@
                 let scale = 1; if (i >= CONFIG.particleCount * 0.3) scale = Math.sqrt(Math.random());
                 const x = 16 * Math.pow(Math.sin(t), 3);
                 const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
-                points.push({ x: x * scale * rScale, y: y * scale * rScale, z: (Math.random() - 0.5) * 2 });
+                points.push({ x: x * scale * rScale, y: y * scale * rScale, z: (Math.random() - 0.5) * 5 });
             }
         }
         else if (type === 'FINAL_COMBINED') {
             const g1 = new THREE.TextGeometry("I", { font: font, size: 5, height: 1 });
             const g2 = new THREE.TextGeometry("YOU", { font: font, size: 5, height: 1 });
             const g3 = new THREE.TextGeometry("ALINEY", { font: font, size: 5, height: 1 });
-            const p1 = samplePointsFromMesh(g1, CONFIG.particleCount * 0.15, -28, 12, 1);
-            const p2 = samplePointsFromMesh(g2, CONFIG.particleCount * 0.25, 0, 12, 1);
-            const p3 = samplePointsFromMesh(g3, CONFIG.particleCount * 0.40, 0, -8, 1);
             const pHeart = []; const hCount = CONFIG.particleCount * 0.20;
             for(let k=0; k<hCount; k++) {
                 const t = Math.random() * Math.PI * 2; let scale = 1; if (k > hCount * 0.3) scale = Math.sqrt(Math.random());
                 const x = 16 * Math.pow(Math.sin(t), 3); const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
                 pHeart.push({x: x*scale*0.4 - 20, y: y*scale*0.4 + 12, z: 0});
             }
-            points = [...p1, ...pHeart, ...p2, ...p3];
+            points = [...samplePointsFromMesh(g1, CONFIG.particleCount * 0.15, -28, 12, 1),
+                      ...pHeart,
+                      ...samplePointsFromMesh(g2, CONFIG.particleCount * 0.25, 0, 12, 1),
+                      ...samplePointsFromMesh(g3, CONFIG.particleCount * 0.40, 0, -8, 1)];
         }
         else {
-            const geo = new THREE.TextGeometry(type, { font: font, size: 15, height: 2, curveSegments: 6, bevelEnabled: true, bevelThickness: 0.5, bevelSize: 0.3, bevelSegments: 3 });
+            const geo = new THREE.TextGeometry(type, { font: font, size: 15, height: 2, curveSegments: 4 });
             geo.computeBoundingBox(); geo.translate(-0.5 * (geo.boundingBox.max.x - geo.boundingBox.min.x), 0, 0);
             points = samplePointsFromMesh(geo, CONFIG.particleCount, 0, 0, CONFIG.textScale);
         }
+
         if (points.length === 0) return;
         for (let i = 0; i < CONFIG.particleCount; i++) {
             const p = points[i % points.length];
             targetPositions[i*3] = p.x; targetPositions[i*3+1] = p.y; targetPositions[i*3+2] = p.z;
         }
-        const arr = geometry.attributes.position.array;
-        for(let i=0; i<CONFIG.particleCount; i++) { arr[i*3] += (Math.random()-0.5) * 120; arr[i*3+1] += (Math.random()-0.5) * 120; arr[i*3+2] += (Math.random()-0.5) * 120; }
     }
 
     const videoElement = document.getElementById('input_video');
+    const statusMsg = document.getElementById('status-msg');
+    const startBtn = document.getElementById('start-btn');
+    const loader = document.getElementById('loader');
+
+    // ক্যামেরা সেটআপ (Robust Error Handling)
     async function setupCamera() {
         if (currentStream) currentStream.getTracks().forEach(track => track.stop());
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: useFrontCamera ? "user" : "environment", width: { ideal: 640 }, height: { ideal: 480 } } });
-            currentStream = stream; videoElement.srcObject = stream; return new Promise(resolve => videoElement.onloadedmetadata = resolve);
-        } catch (e) { alert("Camera not allowed"); }
+            statusMsg.innerText = "Accessing Camera...";
+            const constraints = {
+                video: { 
+                    facingMode: useFrontCamera ? "user" : "environment",
+                    width: { ideal: 640 }, height: { ideal: 480 }
+                } 
+            };
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            currentStream = stream; 
+            videoElement.srcObject = stream; 
+            
+            return new Promise((resolve) => {
+                videoElement.onloadedmetadata = () => {
+                    videoElement.play(); // iPhone fix
+                    resolve();
+                };
+            });
+        } catch (e) { 
+            console.error(e);
+            alert("Camera blocked! Please allow camera permission in browser settings."); 
+            statusMsg.innerText = "Camera Permission Denied";
+            startBtn.style.display = "block";
+            loader.style.display = "none";
+        }
     }
-    async function switchCamera() { useFrontCamera = !useFrontCamera; videoElement.style.transform = useFrontCamera ? "scaleX(-1)" : "scaleX(1)"; await setupCamera(); }
+
+    async function switchCamera() { 
+        useFrontCamera = !useFrontCamera; 
+        videoElement.style.transform = useFrontCamera ? "scaleX(-1)" : "scaleX(1)"; 
+        await setupCamera(); 
+    }
+    
     function toggleFullScreen() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
 
+    // MediaPipe Hands
     const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
     hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+    
     hands.onResults(results => {
         if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-            const lm = results.multiHandLandmarks[0]; handX = (1 - lm[9].x) * 2 - 1; handY = (1 - lm[9].y) * 2 - 1; if(!useFrontCamera) handX = -handX;
-            if (Date.now() - lastSwipeTime > CONFIG.swipeCooldown && Math.abs(handX - lastHandX) > 0.15) {
-                // INFINITE LOOP LOGIC
-                currentStep = (currentStep + 1) % SEQUENCE.length; 
-                calculateTargets(SEQUENCE[currentStep]); 
-                lastSwipeTime = Date.now();
+            const lm = results.multiHandLandmarks[0];
+            handX = lm[8].x; 
+            if (useFrontCamera) handX = 1 - handX;
+
+            const currentTime = Date.now();
+            if (currentTime - lastSwipeTime > CONFIG.swipeCooldown) {
+                if (Math.abs(handX - lastHandX) > CONFIG.swipeThreshold) {
+                    currentStep = (currentStep + 1) % SEQUENCE.length; 
+                    calculateTargets(SEQUENCE[currentStep]); 
+                    lastSwipeTime = currentTime;
+                }
             }
             lastHandX = handX;
         }
     });
 
-    window.startApp = async function() {
-        document.getElementById('start-screen').style.display = 'none';
-        const loader = new THREE.FontLoader();
-        loader.load('https://unpkg.com/three@0.128.0/examples/fonts/helvetiker_bold.typeface.json', async (res) => {
-            font = res; calculateTargets('WELCOME_MADAM'); await setupCamera();
-            new Camera(videoElement, { onFrame: async () => await hands.send({image: videoElement}), width: 640, height: 480 }).start();
+    // অ্যাপ শুরু করার ফাংশন
+    window.initApp = async function() {
+        startBtn.style.display = 'none';
+        loader.style.display = 'block';
+        statusMsg.innerText = "Loading Magic...";
+
+        // ফন্ট লোড করা
+        const fontLoader = new THREE.FontLoader();
+        fontLoader.load('https://unpkg.com/three@0.128.0/examples/fonts/helvetiker_bold.typeface.json', async (res) => {
+            font = res; 
+            adjustCameraPosition(); // স্ক্রিন সাইজ অনুযায়ী ক্যামেরা সেট
+            calculateTargets('WELCOME_MADAM'); 
+            
+            await setupCamera(); // ক্যামেরা চালু
+            
+            // ক্যামেরা চালু হলে মিডিয়াপাইপ শুরু
+            const cameraObj = new Camera(videoElement, { 
+                onFrame: async () => await hands.send({image: videoElement}), 
+                width: 640, height: 480 
+            });
+            cameraObj.start();
+            
+            document.getElementById('start-screen').style.display = 'none'; // লোডিং স্ক্রিন সরিয়ে ফেলা
             animate();
+        }, 
+        // Progress
+        undefined, 
+        // Error
+        (err) => {
+            alert("Error loading font. Please check internet connection.");
+            startBtn.style.display = 'block';
+            loader.style.display = 'none';
         });
     };
 
     const clock = new THREE.Clock();
     function animate() {
-        requestAnimationFrame(animate); const time = clock.getElapsedTime();
-        scene.rotation.y = 0; scene.rotation.x = 0;
-        const hue = (time * 0.15) % 1; const c = new THREE.Color().setHSL(hue, 1, 0.5);
-        const colorsAttr = geometry.attributes.color; for(let i=0; i<CONFIG.particleCount; i++) colorsAttr.setXYZ(i, c.r, c.g, c.b); colorsAttr.needsUpdate = true;
+        requestAnimationFrame(animate); 
+        const time = clock.getElapsedTime();
+        const hue = (time * 0.1) % 1; 
+        const c = new THREE.Color().setHSL(hue, 0.8, 0.6);
+        const colorsAttr = geometry.attributes.color; 
+        for(let i=0; i<CONFIG.particleCount; i+=2) { colorsAttr.setXYZ(i, c.r, c.g, c.b); }
+        colorsAttr.needsUpdate = true;
+        
         const arr = geometry.attributes.position.array;
+        const speed = 0.08; 
         for(let i=0; i<CONFIG.particleCount; i++) {
             const ix = i*3, iy = i*3+1, iz = i*3+2;
-            arr[ix] += (targetPositions[ix] - arr[ix]) * 0.07; arr[iy] += (targetPositions[iy] - arr[iy]) * 0.07; arr[iz] += (targetPositions[iz] - arr[iz]) * 0.07;
+            arr[ix] += (targetPositions[ix] - arr[ix]) * speed; 
+            arr[iy] += (targetPositions[iy] - arr[iy]) * speed; 
+            arr[iz] += (targetPositions[iz] - arr[iz]) * speed;
         }
-        geometry.attributes.position.needsUpdate = true; renderer.render(scene, camera);
+        geometry.attributes.position.needsUpdate = true; 
+        renderer.render(scene, camera);
     }
-    window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+    
+    // উইন্ডো রিসাইজ হলে ক্যামেরা ঠিক করা
+    window.addEventListener('resize', adjustCameraPosition);
 </script>
 </body>
 </html>
