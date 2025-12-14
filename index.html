@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Magic Love - Ultimate Guide</title>
+    <title>Magic Love - Legacy Support</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', sans-serif; touch-action: none; }
         
@@ -18,12 +18,12 @@
         }
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); filter: brightness(1.2); }
 
-        /* হ্যান্ড ট্র্যাকার */
+        /* স্মার্ট ট্র্যাকার */
         #hand-tracker {
-            position: absolute; width: 25px; height: 25px;
+            position: absolute; width: 30px; height: 30px;
             background-color: #00ff00; 
             border: 3px solid white; border-radius: 50%;
-            box-shadow: 0 0 15px #00ff00;
+            box-shadow: 0 0 20px #00ff00;
             z-index: 50; pointer-events: none; display: none;
             transform: translate(-50%, -50%);
             transition: background-color 0.2s;
@@ -32,7 +32,7 @@
         #ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 20; 
-            display: flex; flex-direction: column; align-items: center; padding-top: 50px;
+            display: flex; flex-direction: column; align-items: center; padding-top: 40px;
         }
         
         h1 { margin: 0; font-size: 1.5rem; color: #fff; text-shadow: 0 0 15px #ff00de; text-align: center; font-weight: bold; letter-spacing: 2px; }
@@ -46,38 +46,31 @@
             text-transform: uppercase;
         }
         
-        /* -------------------------------------- */
-        /* INSTRUCTION SCREEN (NEW ADDITION)      */
-        /* -------------------------------------- */
+        /* LOADING SCREEN */
         #intro-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 200; /* সবার উপরে */
+            background: #000; z-index: 200;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             color: #fff; text-align: center; padding: 20px;
         }
-        #intro-overlay h2 { color: #00ffcc; font-size: 1.8rem; margin-bottom: 20px; text-shadow: 0 0 10px #00ffcc; }
+        #intro-overlay h2 { color: #00ffcc; font-size: 1.5rem; margin-bottom: 20px; }
         .rules-box {
             background: rgba(20, 20, 20, 0.9); border: 1px solid #ff00de;
-            padding: 20px; border-radius: 15px; max-width: 400px; width: 90%;
-            box-shadow: 0 0 20px rgba(255, 0, 222, 0.2);
+            padding: 15px; border-radius: 15px; max-width: 400px; width: 90%;
         }
-        .rules-list { list-style: none; padding: 0; text-align: left; font-size: 0.9rem; line-height: 1.6; }
-        .rules-list li { margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
-        .highlight { color: #00ff00; font-weight: bold; }
-        .warning { color: #ff3333; font-weight: bold; }
+        .rules-list { list-style: none; padding: 0; text-align: left; font-size: 0.85rem; line-height: 1.5; }
+        .rules-list li { margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
         
         #timer-circle {
-            width: 60px; height: 60px; border-radius: 50%;
+            width: 50px; height: 50px; border-radius: 50%;
             border: 4px solid #00ffcc; display: flex; align-items: center; justify-content: center;
-            font-size: 1.5rem; font-weight: bold; margin-top: 30px;
-            box-shadow: 0 0 15px #00ffcc;
+            font-size: 1.2rem; font-weight: bold; margin-top: 20px;
         }
 
         #start-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: #000; z-index: 100;
-            display: none; /* Initially Hidden, shows after timer */
-            flex-direction: column; align-items: center; justify-content: center;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
             pointer-events: auto;
         }
         #start-btn {
@@ -101,15 +94,14 @@
         <h2>⚠️ নিয়মাবলী (Rules)</h2>
         <div class="rules-box">
             <ul class="rules-list">
-                <li>✅ <b>হাত সোয়াইপ করবেন:</b> যখন স্ক্রিনের ডট <span class="highlight">সবুজ (GREEN)</span> হবে।</li>
-                <li>❌ <b>অপেক্ষা করবেন:</b> যখন ডট <span style="color:white">সাদা (WHITE)</span> থাকবে।</li>
-                <li>👁️ <b>লক্ষ্য রাখুন:</b> উপরে "SWIPE NOW" লেখা আসলে হাত নাড়াবেন।</li>
-                <li>📸 <b>ক্যামেরা:</b> হাত সবসময় ক্যামেরার ফ্রেমে রাখবেন।</li>
-                <li>⏳ <b>ধৈর্য ধরুন:</b> একটার পর একটা লেখা আসবে, তাড়াহুড়ো করবেন না।</li>
+                <li>✅ <b>হাত সোয়াইপ করবেন:</b> যখন ডট <span style="color:#00ff00">সবুজ (GREEN)</span> হবে।</li>
+                <li>❌ <b>থামবেন:</b> যখন ডট <span style="color:white">সাদা (WHITE)</span> হবে।</li>
+                <li>📸 <b>ক্যামেরা:</b> হাত সবসময় ক্যামেরার সামনে রাখবেন।</li>
+                <li>⏳ <b>ধৈর্য:</b> একটার পর একটা লেখা আসবে।</li>
             </ul>
         </div>
         <div id="timer-circle">10</div>
-        <p style="margin-top:10px; font-size:0.8rem; color:#aaa;">Loading System...</p>
+        <p style="margin-top:10px; font-size:0.7rem; color:#aaa;">Optimizing for your phone...</p>
     </div>
 
     <div id="start-screen">
@@ -122,7 +114,7 @@
 
     <div id="ui-layer">
         <h1>Sifat's Magic</h1>
-        <p>Follow the <span style="color:#00ff00;">Green Dot</span></p>
+        <p>Swipe on <span style="color:#00ff00; font-weight:bold;">GREEN</span></p>
         <div id="tracker-status" class="status-text">Detecting...</div>
         <div class="btn-group">
             <button class="btn" onclick="switchCamera()">Flip</button>
@@ -136,7 +128,6 @@
     <div id="canvas-container"></div>
 
 <script>
-    // --- INTRO TIMER LOGIC ---
     window.onload = function() {
         let timeLeft = 10;
         const timerEl = document.getElementById('timer-circle');
@@ -151,7 +142,7 @@
                 overlay.style.opacity = '0';
                 setTimeout(() => {
                     overlay.style.display = 'none';
-                    startScreen.style.display = 'flex'; // Show start button
+                    startScreen.style.display = 'flex'; 
                 }, 500);
             }
         }, 1000);
@@ -160,8 +151,9 @@
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     const CONFIG = {
-        particleCount: isMobile ? 9000 : 25000, 
-        particleSize: isMobile ? 2.2 : 0.7,
+        // Redmi 5 ফিক্স: পার্টিকেল কমিয়ে ৬০০০, কিন্তু সাইজ বাড়িয়ে ৩.০
+        particleCount: isMobile ? 6000 : 25000, 
+        particleSize: isMobile ? 3.0 : 0.7, 
         swipeCooldown: 2000, 
         textScale: isMobile ? 0.40 : 0.9,
         swipeThreshold: 0.02 
@@ -193,9 +185,17 @@
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 3000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // REDMI 5 FIX: Antialias বন্ধ এবং প্রিসিশন কমানো হলো
+    const renderer = new THREE.WebGLRenderer({ 
+        antialias: isMobile ? false : true, // মোবাইলে অ্যান্টি-অ্যালিয়াসিং বন্ধ
+        alpha: true,
+        precision: isMobile ? 'mediump' : 'highp', // লো-এন্ড ফোনের জন্য মিডিয়াম প্রিসিশন
+        powerPreference: 'high-performance'
+    });
+    
+    // REDMI 5 FIX: পিক্সেল রেশিও ১ এ ফিক্স করা
+    renderer.setPixelRatio(isMobile ? 1 : Math.min(window.devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById('canvas-container').appendChild(renderer.domElement);
 
@@ -250,7 +250,7 @@
     scene.add(new THREE.Points(geometry, material));
 
     // ==========================================
-    // 90% BORDER / 10% FILL - SOLID GUARANTEE
+    // 90% BORDER / 10% FILL
     // ==========================================
     function getHybridPoints(geo, count, xOff, yOff, scale) {
         const tempPos = [];
@@ -424,14 +424,12 @@
             const currentTime = Date.now();
             
             if (currentTime - lastSwipeTime < CONFIG.swipeCooldown) {
-                // LOCKED
                 tracker.style.backgroundColor = 'white'; 
                 tracker.style.boxShadow = '0 0 5px white';
                 trackerStatus.innerText = "Wait...";
                 trackerStatus.style.color = "white";
                 lastHandX = handX;
             } else {
-                // READY
                 tracker.style.backgroundColor = '#00ff00'; 
                 tracker.style.boxShadow = '0 0 15px #00ff00';
                 trackerStatus.innerText = "SWIPE NOW!";
